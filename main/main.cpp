@@ -8,12 +8,19 @@
 #include <esp_log.h>
 #include <cstring>
 #include <esp_http_server.h>
+#include <dirent.h>
+
 extern "C"{
   #include "mdns.h"
+#include "esp_spiffs.h"
 }
 
 
 extern "C" void app_main();
+
+
+
+
 
 void wifi_init( void){
 
@@ -65,31 +72,114 @@ ESP_LOGI("WIFI_AP","GateWay:" IPSTR,IP2STR(&ip_info.gw));
 
 
 
-// Web server handler
-esp_err_t root_get_handler(httpd_req_t *req)
-{
-    const char* resp =
-        "<html><body>"
-        "<h1>SERVER IS WORKING</h1>"
-        "<p>You are connected to the ESP32 AP!</p>"
-        "</body></html>";
 
-    httpd_resp_send(req, resp, HTTPD_RESP_USE_STRLEN);
+// new SPIFFS
+
+void spiffs_init() {
+    esp_vfs_spiffs_conf_t conf = {
+        .base_path = "/spiffs", 
+        .partition_label = nullptr,
+        .max_files = 5,
+        .format_if_mount_failed = true
+    };
+
+    esp_err_t ret = esp_vfs_spiffs_register(&conf);
+    if (ret != ESP_OK) {
+        printf("Failed to mount SPIFFS\n");
+        return;
+    }
+
+
+
+    DIR* dir = opendir("/spiffs");
+struct dirent* ent;
+
+while ((ent = readdir(dir)) != NULL) {
+    ESP_LOGI("SPIFFS", "File: %s", ent->d_name);
+}
+
+closedir(dir);
+
+    size_t total = 0, used = 0;
+    esp_spiffs_info(nullptr, &total, &used);
+    printf("SPIFFS total: %d, used: %d\n", total, used);
+}
+
+
+//mime typing for proper browser display 
+const char* get_mime_type(const char* path) {
+    if (strstr(path, ".js")) return "application/javascript";
+    if (strstr(path, ".css")) return "text/css";
+    if (strstr(path, ".html")) return "text/html";
+    if (strstr(path, ".png")) return "image/png";
+    if (strstr(path, ".jpg") || strstr(path, ".jpeg")) return "image/jpeg";
+    return "text/plain";
+}
+
+// Web server handler
+esp_err_t file_get_handler(httpd_req_t *req)
+{
+    char filepath[512];
+    const char *base_path = "/spiffs";
+
+    // If root is requested, serve index.html
+    if (strcmp(req->uri, "/") == 0) {
+        snprintf(filepath, sizeof(filepath), "%s/index.html", base_path);
+    } 
+    else {
+        snprintf(filepath, sizeof(filepath), "%s%.*s",
+                 base_path,
+                 (int)(sizeof(filepath) - strlen(base_path) - 1),
+                 req->uri);
+    }
+
+    ESP_LOGI("HTTP", "Serving file: %s", filepath);
+
+    FILE *file = fopen(filepath, "r");
+    if (!file) {
+        ESP_LOGE("HTTP", "File not found");
+        httpd_resp_send_404(req);
+        return ESP_FAIL;
+    }
+
+    httpd_resp_set_type(req, get_mime_type(filepath));
+
+    char chunk[1024];
+    size_t read_bytes;
+
+    while ((read_bytes = fread(chunk, 1, sizeof(chunk), file)) > 0) {
+        httpd_resp_send_chunk(req, chunk, read_bytes);
+    }
+
+    fclose(file);
+
+    httpd_resp_send_chunk(req, NULL, 0);
     return ESP_OK;
 }
 
 // URL registration (global)
 httpd_uri_t root = {
-    .uri = "/",
+    .uri = "/*",
     .method = HTTP_GET,
-    .handler = root_get_handler,
+    .handler = file_get_handler,
     .user_ctx = NULL
 };
 
-// Start server
+
+
+
+
+
+
+
+
 httpd_handle_t start_webserver(void)
 {
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
+
+    // Enable wildcard URI matching
+    config.uri_match_fn = httpd_uri_match_wildcard;
+
     httpd_handle_t server = NULL;
 
     if (httpd_start(&server, &config) == ESP_OK)
@@ -126,7 +216,8 @@ void mdns_config(){
 // **************--- Main app ---***********//
 extern "C" void app_main(void)
 {
-    wifi_init();     // start AP mode
+    wifi_init();
+    spiffs_init();     // start AP mode
       server_init();   // start web server
       mdns_config();  //sets domain for the default ip  
 }
