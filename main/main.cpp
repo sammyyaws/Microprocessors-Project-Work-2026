@@ -157,6 +157,11 @@ esp_err_t file_get_handler(httpd_req_t *req)
     return ESP_OK;
 }
 
+//end of file serving handler
+
+
+
+
 // URL registration (global)
 httpd_uri_t root = {
     .uri = "/*",
