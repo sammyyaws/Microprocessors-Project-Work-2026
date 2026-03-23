@@ -22,9 +22,40 @@ const char* get_mime_type(const char* path) {
     return "text/plain";
 }
 
+
+
+//this is the cors  configuration 
+void add_cors_headers(httpd_req_t *req) {
+    httpd_resp_set_hdr(req, "Access-Control-Allow-Origin", "*");
+    httpd_resp_set_hdr(req, "Access-Control-Allow-Headers", "Content-Type");
+    httpd_resp_set_hdr(req, "Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+}
+
+//cors device options handler
+esp_err_t options_handler(httpd_req_t *req)
+{
+    add_cors_headers(req);
+
+    httpd_resp_set_status(req, "204 No Content"); 
+      httpd_resp_set_type(req, "text/plain");  
+    httpd_resp_send(req, NULL, 0);
+
+    return ESP_OK;
+}
+//cors uri registrations
+httpd_uri_t options = {
+    .uri = "/*",
+    .method = HTTP_OPTIONS,
+    .handler = options_handler,
+    .user_ctx = NULL
+};
+
+
+
 // Web server handler for rendereing the dahoboard(the html data)
 esp_err_t file_get_handler(httpd_req_t *req)
 {
+    add_cors_headers(req);
     char filepath[512];
     const char *base_path = "/spiffs";
 
@@ -77,9 +108,14 @@ httpd_uri_t root = {
 };
 
 
+
+
+
+
 // this is the GET file handler for the devices added
 
 esp_err_t get_devices_handler(httpd_req_t *req) {
+    add_cors_headers(req);
     FILE *file = fopen("/spiffs/devices.json", "r");
     if (!file) {
         httpd_resp_send(req, "[]", HTTPD_RESP_USE_STRLEN);
@@ -99,7 +135,7 @@ if (!buf) {
    size_t read = fread(buf, 1, size, file);
 buf[read] = '\0';
     fclose(file);
-
+   
     httpd_resp_set_type(req, "application/json");
     httpd_resp_send(req, buf, read);
     free(buf);
@@ -109,7 +145,8 @@ buf[read] = '\0';
 // this is the POST handler for the devices added
 
 esp_err_t post_devices_handler(httpd_req_t *req) {
-    char buf[512];
+    add_cors_headers(req);
+    char buf[2048];
 
     int ret = httpd_req_recv(req, buf, sizeof(buf) - 1);
     if (ret <= 0) {
@@ -218,6 +255,7 @@ esp_err_t post_devices_handler(httpd_req_t *req) {
     }
 
     // Respond
+   
     httpd_resp_set_type(req, "application/json");
     httpd_resp_send(req, json_string, HTTPD_RESP_USE_STRLEN);
 
@@ -248,7 +286,7 @@ httpd_uri_t devices_post = {
 httpd_handle_t start_webserver(void)
 {
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
-
+config.stack_size = 8192;  
     // Enable wildcard URI matching
     config.uri_match_fn = httpd_uri_match_wildcard;
 
@@ -257,6 +295,7 @@ httpd_handle_t start_webserver(void)
     if (httpd_start(&server, &config) == ESP_OK)
     {
         // Register API FIRST
+httpd_register_uri_handler(server, &options);
 httpd_register_uri_handler(server, &devices_get);
 httpd_register_uri_handler(server, &devices_post);
 

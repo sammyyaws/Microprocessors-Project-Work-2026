@@ -4,7 +4,7 @@
 #include "esp_log.h"
   #include "mdns.h"
   #include "wifi.h"
-#include "Control_device.h
+#include "Control_device.h"
 #include  "spiffs.h"
 #include  "webserver.h"
 
@@ -13,7 +13,7 @@
 
 extern "C" void app_main();
 
-
+ 
 
 
 
@@ -46,4 +46,5 @@ extern "C" void app_main(void)
     spiffs_init();     // start AP mode
       server_init();   // start web server
       mdns_config();  //sets domain for the default ip  
+      Control_device();
 }
