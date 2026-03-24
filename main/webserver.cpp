@@ -164,17 +164,20 @@ esp_err_t post_devices_handler(httpd_req_t *req) {
 
     // Extract fields from UI
     cJSON *name_item = cJSON_GetObjectItem(new_device, "deviceName");
-    cJSON *time_item = cJSON_GetObjectItem(new_device, "time");
+    cJSON *onTime_item = cJSON_GetObjectItem(new_device, "onTime");
+    cJSON *offTime_item = cJSON_GetObjectItem(new_device, "offTime");
+
     cJSON *pin_item  = cJSON_GetObjectItem(new_device, "pin");
 
-    if (!cJSON_IsString(name_item) || !cJSON_IsString(time_item) || !cJSON_IsString(pin_item)) {
+    if (!cJSON_IsString(name_item) || !cJSON_IsString(onTime_item) || !cJSON_IsString(offTime_item) || !cJSON_IsString(pin_item)) {
         cJSON_Delete(new_device);
         httpd_resp_send_500(req);
         return ESP_FAIL;
     }
 
     const char *device_name = name_item->valuestring;
-    const char *device_time = time_item->valuestring;
+    const char *on_time = onTime_item->valuestring;
+    const char *off_time = offTime_item->valuestring;
     const char *device_pin  = pin_item->valuestring;
 
     // Read existing file
@@ -238,7 +241,8 @@ esp_err_t post_devices_handler(httpd_req_t *req) {
     cJSON *device_obj = cJSON_CreateObject();
     cJSON_AddNumberToObject(device_obj, "id", new_id);
     cJSON_AddStringToObject(device_obj, "name", device_name);
-    cJSON_AddStringToObject(device_obj, "time", device_time);
+    cJSON_AddStringToObject(device_obj, "onTime", on_time);
+    cJSON_AddStringToObject(device_obj, "offTime", off_time);
     cJSON_AddStringToObject(device_obj, "pin", device_pin);
 
     // Add to array

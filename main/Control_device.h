@@ -1,3 +1,3 @@
 #pragma once
 
-void Control_device();
+void control_task(void *pvParameters);
