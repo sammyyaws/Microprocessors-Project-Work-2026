@@ -5,6 +5,12 @@
     #include <cJSON.h>
 #include <time.h>
 #include <driver/gpio.h>
+
+extern "C" {
+#include "ds1302.h"
+}
+
+extern ds1302_t rtc;
     // load devices
     cJSON* load_devices_from_file() {
         FILE *file = fopen("/spiffs/devices.json", "r");
@@ -41,20 +47,26 @@
     }
 
 
-    //get the actual time
-
-
-
+    //get the actual rtc time
 void get_current_time(int *hour, int *minute) {
-    time_t now;
     struct tm timeinfo;
 
-    time(&now);
-    localtime_r(&now, &timeinfo);
+    if (ds1302_get_time(&rtc, &timeinfo) == ESP_OK) {
+        *hour = timeinfo.tm_hour;
+        *minute = timeinfo.tm_min;
 
-    *hour = timeinfo.tm_hour;
-    *minute = timeinfo.tm_min;
+        ESP_LOGI("RTC", "Current Time -> %02d:%02d",
+                 timeinfo.tm_hour,
+                 timeinfo.tm_min);
+    } else {
+        ESP_LOGE("RTC", "Failed to read RTC time");
+        *hour = 0;
+        *minute = 0;
+    }
 }
+
+
+
 
 //PIN MAPPING  //pin mapping
     gpio_num_t map_pin(int pin) {
