@@ -85,8 +85,12 @@ esp_err_t file_get_handler(httpd_req_t *req)
     size_t read_bytes;
 
     while ((read_bytes = fread(chunk, 1, sizeof(chunk), file)) > 0) {
-        httpd_resp_send_chunk(req, chunk, read_bytes);
+    if (httpd_resp_send_chunk(req, chunk, read_bytes) != ESP_OK) {
+        fclose(file);
+        httpd_resp_send_chunk(req, NULL, 0);
+        return ESP_FAIL;
     }
+}
 
     fclose(file);
 
@@ -253,10 +257,17 @@ esp_err_t post_devices_handler(httpd_req_t *req) {
 
     // Save to file
     file = fopen("/spiffs/devices.json", "w");
-    if (file) {
-        fwrite(json_string, 1, strlen(json_string), file);
-        fclose(file);
-    }
+if (file) {
+    fwrite(json_string, 1, strlen(json_string), file);
+    fclose(file);
+} else {
+    ESP_LOGE("HTTP", "Failed to open file for writing");
+    httpd_resp_send_500(req);
+    cJSON_free(json_string);
+    cJSON_Delete(root);
+    cJSON_Delete(new_device);
+    return ESP_FAIL;
+}
 
     // Respond
    
