@@ -8,7 +8,7 @@
 #include  "spiffs.h"
 #include  "webserver.h"
 #include <driver/gpio.h>
-extern "C" {
+extern "C"{
 #include "ds1302.h"
 }
 
