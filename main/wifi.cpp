@@ -35,7 +35,7 @@ wifi_config_t wifi_config={
     strcpy((char*)wifi_config.ap.password, "12345678");
 
     wifi_config.ap.ssid_len = strlen("ap_test");
-    wifi_config.ap.max_connection = 2;
+    wifi_config.ap.max_connection = 10;
     wifi_config.ap.authmode = WIFI_AUTH_WPA_WPA2_PSK;
 
   //SET WIFI MODE
